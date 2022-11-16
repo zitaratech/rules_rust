@@ -58,12 +58,16 @@ tasks:
     test_targets: *default_linux_targets
     build_flags:
       - "--compilation_mode=opt"
+    test_flags:
+      - "--compilation_mode=opt"
   macos_opt:
     name: Opt Mode
     platform: macos
     build_targets: *default_macos_targets
     test_targets: *default_macos_targets
     build_flags:
+      - "--compilation_mode=opt"
+    test_flags:
       - "--compilation_mode=opt"
   windows_opt:
     name: Opt Mode
