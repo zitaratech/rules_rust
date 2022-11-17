@@ -339,6 +339,7 @@ call against the generated workspace. The following table describes how to contr
             doc = "The path to a [buildifier](https://github.com/bazelbuild/buildtools/blob/5.0.1/buildifier/README.md) binary used to format generated BUILD files.",
             cfg = "exec",
             executable = True,
+            allow_files = True,
             default = Label("//crate_universe/private/vendor:buildifier"),
         ),
         "cargo_bazel": attr.label(
