@@ -27,15 +27,19 @@ rust_bindgen_toolchain(
     name = "default_bindgen_toolchain_impl",
     bindgen = "//bindgen/3rdparty:bindgen",
     clang = select({
-        "//rust/platform:osx": "@bindgen_clang_osx//:clang",
-        "//conditions:default": "@bindgen_clang_linux//:clang",
+        "//rust/platform:x86_64-unknown-linux-gnu": "@bindgen_clang_linux_x86_64//:clang",
+        "//rust/platform:x86_64-apple-darwin": "@bindgen_clang_osx_x86_64//:clang",
+        "//rust/platform:aarch64-unknown-linux-gnu": "@bindgen_clang_linux_aarch64//:clang",
     }),
     libclang = select({
-        "//rust/platform:osx": "@bindgen_clang_osx//:libclang",
-        "//conditions:default": "@bindgen_clang_linux//:libclang",
+        "//rust/platform:x86_64-unknown-linux-gnu": "@bindgen_clang_linux_x86_64//:libclang",
+        "//rust/platform:x86_64-apple-darwin": "@bindgen_clang_osx_x86_64//:libclang",
+        "//rust/platform:aarch64-unknown-linux-gnu": "@bindgen_clang_linux_aarch64//:libclang",
+        # TODO aarch64 apple-darwin
     }),
     libstdcxx = select({
-        "//rust/platform:osx": "@bindgen_clang_osx//:libc++",
+        "//rust/platform:x86_64-apple-darwin": "@bindgen_clang_osx_x86_64//:libc++",
+        # TODO aarch64 apple-darwin
         "//conditions:default": None,
     }),
 )
