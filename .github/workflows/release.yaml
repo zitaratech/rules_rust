@@ -121,7 +121,7 @@ jobs:
           path: ${{ github.workspace }}/crate_universe/target/artifacts
       - name: Detect the current version
         run: |
-          version="$(grep 'VERSION =' ${{ github.workspace }}/version.bzl | grep -o '[[:digit:].]\+')"
+          version="$(grep 'VERSION =' ${{ github.workspace }}/version.bzl | sed 's/VERSION = "//' | sed 's/"//')"
           echo "RELEASE_VERSION=${version}" >> $GITHUB_ENV
       - name: Create the rules archive
         run: |
