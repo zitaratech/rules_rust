@@ -580,13 +580,12 @@ tasks:
       - "--apple_platform_type=ios"
     test_targets:
       - "//..."
-  # TODO: https://github.com/bazelbuild/rules_rust/issues/1892
-  # zig_cross_compiling:
-  #   name: Zig cross compiling test
-  #   platform: ubuntu2004
-  #   working_directory: examples/zig_cross_compiling
-  #   build_targets:
-  #     - "//..."
+  zig_cross_compiling:
+    name: Zig cross compiling test
+    platform: ubuntu2004
+    working_directory: examples/zig_cross_compiling
+    build_targets:
+      - "//..."
 
 buildifier:
   version: latest
