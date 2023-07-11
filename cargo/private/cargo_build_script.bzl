@@ -225,13 +225,17 @@ def _cargo_build_script_impl(ctx):
         streams.stderr.path,
     ])
     build_script_inputs = []
-    for dep in ctx.attr.deps:
+    for dep in ctx.attr.link_deps:
         if rust_common.dep_info in dep and dep[rust_common.dep_info].dep_env:
             dep_env_file = dep[rust_common.dep_info].dep_env
             args.add(dep_env_file.path)
             build_script_inputs.append(dep_env_file)
             for dep_build_info in dep[rust_common.dep_info].transitive_build_infos.to_list():
                 build_script_inputs.append(dep_build_info.out_dir)
+
+    for dep in ctx.attr.deps:
+        for dep_build_info in dep[rust_common.dep_info].transitive_build_infos.to_list():
+            build_script_inputs.append(dep_build_info.out_dir)
 
     if feature_enabled(ctx, SYMLINK_EXEC_ROOT_FEATURE):
         env["RULES_RUST_SYMLINK_EXEC_ROOT"] = "1"
@@ -280,7 +284,16 @@ cargo_build_script = rule(
             allow_files = True,
         ),
         "deps": attr.label_list(
-            doc = "The Rust dependencies of the crate",
+            doc = "The Rust build-dependencies of the crate",
+            providers = [rust_common.dep_info],
+            cfg = "exec",
+        ),
+        "link_deps": attr.label_list(
+            doc = dedent("""\
+                The subset of the Rust (normal) dependencies of the crate that
+                have the links attribute and therefore provide environment
+                variables to this build script.
+            """),
             providers = [rust_common.dep_info],
             cfg = "exec",
         ),
