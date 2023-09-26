@@ -14,6 +14,7 @@
 
 """Functionality for constructing actions that invoke the Rust compiler"""
 
+load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load(
     "@bazel_tools//tools/build_defs/cc:action_names.bzl",
@@ -398,6 +399,8 @@ def get_linker_and_args(ctx, attr, crate_type, cc_toolchain, feature_configurati
         action_name = action_name,
         variables = link_variables,
     )
+    link_args = [i for i in link_args]
+    link_args.append("-B" + paths.dirname(cc_toolchain.ld_executable))
     link_env = cc_common.get_environment_variables(
         feature_configuration = feature_configuration,
         action_name = action_name,
