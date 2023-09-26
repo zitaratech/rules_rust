@@ -18,12 +18,35 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 load("//bindgen/3rdparty/crates:defs.bzl", "crate_repositories")
 
+BINDGEN_VERSION = "0.65.1"
+
 # buildifier: disable=unnamed-macro
 def rust_bindgen_dependencies():
     """Declare dependencies needed for bindgen."""
 
-    # nb. The bindgen rule itself should work on any platform.
-    _bindgen_clang_repositories()
+    maybe(
+        http_archive,
+        name = "llvm-raw",
+        urls = ["https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/llvm-project-14.0.6.src.tar.xz"],
+        strip_prefix = "llvm-project-14.0.6.src",
+        sha256 = "8b3cfd7bc695bd6cea0f37f53f0981f34f87496e79e2529874fd03a2f9dd3a8a",
+        build_file_content = "# empty",
+        patch_args = ["-p1"],
+        patches = [
+            Label("//bindgen/3rdparty/patches:llvm-project.cxx17.patch"),
+            Label("//bindgen/3rdparty/patches:llvm-project.incompatible_disallow_empty_glob.patch"),
+        ],
+    )
+
+    maybe(
+        http_archive,
+        name = "rules_rust_bindgen__bindgen-cli-{}".format(BINDGEN_VERSION),
+        sha256 = "33373a4e0ec8b6fa2654e0c941ad16631b0d564cfd20e7e4b3db4c5b28f4a237",
+        type = "tar.gz",
+        urls = ["https://crates.io/api/v1/crates/bindgen-cli/{}/download".format(BINDGEN_VERSION)],
+        strip_prefix = "bindgen-cli-{}".format(BINDGEN_VERSION),
+        build_file = Label("//bindgen/3rdparty:BUILD.bindgen-cli.bazel"),
+    )
 
     crate_repositories()
 

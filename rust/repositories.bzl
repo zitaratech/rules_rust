@@ -52,10 +52,10 @@ def rules_rust_dependencies():
         http_archive,
         name = "platforms",
         urls = [
-            "https://mirror.bazel.build/github.com/bazelbuild/platforms/releases/download/0.0.5/platforms-0.0.5.tar.gz",
-            "https://github.com/bazelbuild/platforms/releases/download/0.0.5/platforms-0.0.5.tar.gz",
+            "https://mirror.bazel.build/github.com/bazelbuild/platforms/releases/download/0.0.7/platforms-0.0.7.tar.gz",
+            "https://github.com/bazelbuild/platforms/releases/download/0.0.7/platforms-0.0.7.tar.gz",
         ],
-        sha256 = "379113459b0feaf6bfbb584a91874c065078aa673222846ac765f86661c27407",
+        sha256 = "3a561c99e7bdbe9173aa653fd579fe849f1d8d67395780ab4770b1f381431d51",
     )
     maybe(
         http_archive,
@@ -67,11 +67,11 @@ def rules_rust_dependencies():
     maybe(
         http_archive,
         name = "bazel_skylib",
+        sha256 = "66ffd9315665bfaafc96b52278f57c7e2dd09f5ede279ea6d39b2be471e7e3aa",
         urls = [
-            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
-            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.2.0/bazel-skylib-1.2.0.tar.gz",
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.4.2/bazel-skylib-1.4.2.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.4.2/bazel-skylib-1.4.2.tar.gz",
         ],
-        sha256 = "af87959afe497dc8dfd4c6cb66e1279cb98ccc84284619ebfec27d9c09a903de",
     )
 
     # Make the iOS simulator constraint available, which is referenced in abi_to_constraints()
@@ -79,8 +79,8 @@ def rules_rust_dependencies():
     maybe(
         http_archive,
         name = "build_bazel_apple_support",
-        sha256 = "77a121a0f5d4cd88824429464ad2bfb54bdc8a3bccdb4d31a6c846003a3f5e44",
-        url = "https://github.com/bazelbuild/apple_support/releases/download/1.4.1/apple_support.1.4.1.tar.gz",
+        sha256 = "45d6bbad5316c9c300878bf7fffc4ffde13d620484c9184708c917e20b8b63ff",
+        url = "https://github.com/bazelbuild/apple_support/releases/download/1.8.1/apple_support.1.8.1.tar.gz",
     )
 
     # process_wrapper needs a low-dependency way to process json.
@@ -359,6 +359,7 @@ def _rust_toolchain_tools_repository_impl(ctx):
         include_llvm_tools = include_llvm_tools,
         extra_rustc_flags = ctx.attr.extra_rustc_flags,
         extra_exec_rustc_flags = ctx.attr.extra_exec_rustc_flags,
+        opt_level = ctx.attr.opt_level if ctx.attr.opt_level else None,
     ))
 
     # Not all target triples are expected to have dev components
@@ -412,6 +413,9 @@ rust_toolchain_tools_repository = repository_rule(
         ),
         "iso_date": attr.string(
             doc = "The date of the tool (or None, if the version is a specific version).",
+        ),
+        "opt_level": attr.string_dict(
+            doc = "Rustc optimization levels. For more details see the documentation for `rust_toolchain.opt_level`.",
         ),
         "rustfmt_version": attr.string(
             doc = "The version of the tool among \"nightly\", \"beta\", or an exact version.",
@@ -498,6 +502,7 @@ def rust_toolchain_repository(
         dev_components = False,
         extra_rustc_flags = None,
         extra_exec_rustc_flags = None,
+        opt_level = None,
         sha256s = None,
         urls = DEFAULT_STATIC_RUST_URL_TEMPLATES,
         auth = None):
@@ -523,6 +528,7 @@ def rust_toolchain_repository(
             Requires version to be "nightly". Defaults to False.
         extra_rustc_flags (list, optional): Extra flags to pass to rustc in non-exec configuration.
         extra_exec_rustc_flags (list, optional): Extra flags to pass to rustc in exec configuration.
+        opt_level (dict, optional): Optimization level config for this toolchain.
         sha256s (str, optional): A dict associating tool subdirectories to sha256 hashes. See
             [rust_repositories](#rust_repositories) for more details.
         urls (list, optional): A list of mirror urls containing the tools from the Rust-lang static file server. These must contain the '{}' used to substitute the tool being fetched (using .format). Defaults to ['https://static.rust-lang.org/dist/{}.tar.gz']
@@ -559,6 +565,7 @@ def rust_toolchain_repository(
         dev_components = dev_components,
         extra_rustc_flags = extra_rustc_flags,
         extra_exec_rustc_flags = extra_exec_rustc_flags,
+        opt_level = opt_level,
         sha256s = sha256s,
         urls = urls,
         auth = auth,
@@ -881,17 +888,20 @@ def rust_repository_set(
         versions = [],
         allocator_library = None,
         global_allocator_library = None,
-        extra_target_triples = [],
+        extra_target_triples = {},
         iso_date = None,
         rustfmt_version = None,
         edition = None,
         dev_components = False,
         extra_rustc_flags = None,
         extra_exec_rustc_flags = None,
+        opt_level = None,
         sha256s = None,
         urls = DEFAULT_STATIC_RUST_URL_TEMPLATES,
         auth = None,
-        register_toolchain = True):
+        register_toolchain = True,
+        exec_compatible_with = None,
+        default_target_compatible_with = None):
     """Assembles a remote repository for the given toolchain params, produces a proxy repository \
     to contain the toolchain declaration, and registers the toolchains.
 
@@ -905,8 +915,8 @@ def rust_repository_set(
         allocator_library (str, optional): Target that provides allocator functions when rust_library targets are
             embedded in a cc_binary.
         global_allocator_library (str, optional): Target that provides allocator functions a global allocator is used with cc_common.link.
-        extra_target_triples (list, optional): Additional rust-style targets that this set of
-            toolchains should support.
+        extra_target_triples (list or map, optional): Additional rust-style targets that this set of
+            toolchains should support. If a map, values should be (optional) target_compatible_with lists for that particular target triple.
         iso_date (str, optional): The date of the tool.
         rustfmt_version (str, optional):  The version of rustfmt to be associated with the
             toolchain.
@@ -916,6 +926,7 @@ def rust_repository_set(
             Requires version to be "nightly".
         extra_rustc_flags (dict, list, optional): Dictionary of target triples to list of extra flags to pass to rustc in non-exec configuration.
         extra_exec_rustc_flags (list, optional): Extra flags to pass to rustc in exec configuration.
+        opt_level (dict, dict, optional): Dictionary of target triples to optimiztion config.
         sha256s (str, optional): A dict associating tool subdirectories to sha256 hashes. See
             [rust_repositories](#rust_repositories) for more details.
         urls (list, optional): A list of mirror urls containing the tools from the Rust-lang static file server. These
@@ -923,6 +934,8 @@ def rust_repository_set(
         auth (dict): Auth object compatible with repository_ctx.download to use when downloading files.
             See [repository_ctx.download](https://docs.bazel.build/versions/main/skylark/lib/repository_ctx.html#download) for more details.
         register_toolchain (bool): If True, the generated `rust_toolchain` target will become a registered toolchain.
+        exec_compatible_with (list, optional): A list of constraints for the execution platform for this toolchain.
+        default_target_compatible_with (list, optional): A list of constraints for the target platform for this toolchain when the exec platform is the same as the target platform.
     """
 
     if version and versions:
@@ -942,8 +955,20 @@ def rust_repository_set(
     if version and not versions:
         versions = [version]
 
+    # extra_target_triples may be a dict or list - make a list we can pass to _get_toolchain_repositories
+    extra_target_triples_list = []
+    for extra_target_triple in extra_target_triples:
+        extra_target_triples_list.append(extra_target_triple)
+
     all_toolchain_names = []
-    for toolchain in _get_toolchain_repositories(name, exec_triple, extra_target_triples, versions, iso_date):
+    for toolchain in _get_toolchain_repositories(name, exec_triple, extra_target_triples_list, versions, iso_date):
+        target_compatible_with = None
+        if toolchain.target_triple == exec_triple:
+            # The exec triple implicitly gets a toolchain with itself as a target - use default_target_compatible_with for it
+            target_compatible_with = default_target_compatible_with
+        elif type(extra_target_triples) == "dict":
+            target_compatible_with = extra_target_triples.get(toolchain.target_triple)
+
         all_toolchain_names.append(rust_toolchain_repository(
             name = toolchain.name,
             allocator_library = allocator_library,
@@ -955,6 +980,7 @@ def rust_repository_set(
             exec_triple = exec_triple,
             extra_exec_rustc_flags = extra_exec_rustc_flags,
             extra_rustc_flags = extra_rustc_flags.get(toolchain.target_triple) if extra_rustc_flags != None else None,
+            opt_level = opt_level.get(toolchain.target_triple) if opt_level != None else None,
             target_settings = target_settings,
             iso_date = toolchain.channel.iso_date,
             rustfmt_version = rustfmt_version,
@@ -962,6 +988,8 @@ def rust_repository_set(
             target_triple = toolchain.target_triple,
             urls = urls,
             version = toolchain.channel.version,
+            exec_compatible_with = exec_compatible_with,
+            target_compatible_with = target_compatible_with,
         ))
 
     # This repository exists to allow `rust_repository_set` to work with the `maybe` wrapper.
